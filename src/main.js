@@ -25,6 +25,12 @@ let activeEnemies = [];
 let spawnTimerId = null;
 let enemySpawnerId = null;
 
+// --- Drag State (Pointer Events) ---
+let draggedElement = null;
+let dragSourceIdx = null;
+let startX = 0;
+let startY = 0;
+
 // --- DOM Elements ---
 const screens = {
     [STATE.TITLE]: document.getElementById('title-screen'),
@@ -54,17 +60,18 @@ function setupEventListeners() {
     document.getElementById('back-to-title-btn').onclick = () => changeState(STATE.TITLE);
     document.getElementById('start-battle-btn').onclick = () => changeState(STATE.BATTLE);
     document.getElementById('back-to-selection-btn').onclick = () => changeState(STATE.SELECTION);
+
+    // Global Pointer Events for Drag
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
 }
 
 function changeState(newState) {
     currentState = newState;
-    
-    // UI 切り替え
     Object.keys(screens).forEach(key => {
         screens[key].classList.toggle('hidden', key !== currentState);
     });
 
-    // 状態に応じた初期化
     if (currentState === STATE.TITLE) {
         resetGameData();
     } else if (currentState === STATE.SELECTION) {
@@ -77,15 +84,11 @@ function changeState(newState) {
 }
 
 function resetGameData() {
-    score = 0;
-    playerHp = 100;
-    enemyHp = 100;
+    score = 0; playerHp = 100; enemyHp = 100;
     selectedDeck = [];
     grid = Array(GRID_SIZE * GRID_SIZE).fill(null);
-    activeUnits = [];
-    activeEnemies = [];
+    activeUnits = []; activeEnemies = [];
     battleContainer.innerHTML = '';
-    
     if (spawnTimerId) clearInterval(spawnTimerId);
     if (enemySpawnerId) clearInterval(enemySpawnerId);
 }
@@ -95,15 +98,10 @@ function showSelectionScreen() {
     unitOptionsContainer.innerHTML = '';
     selectedDeck = [];
     updateSelectionUI();
-    
     Object.values(UNIT_TYPES).forEach(unit => {
         const card = document.createElement('div');
         card.classList.add('unit-card');
-        card.innerHTML = `
-            <div class="unit-icon" style="background: ${unit.color}"></div>
-            <div class="unit-name">${unit.name}</div>
-            <div class="check-mark">✔</div>
-        `;
+        card.innerHTML = `<div class="unit-icon" style="background: ${unit.color}"></div><div class="unit-name">${unit.name}</div><div class="check-mark">✔</div>`;
         card.onclick = () => {
             const idx = selectedDeck.indexOf(unit.id);
             if (idx > -1) selectedDeck.splice(idx, 1);
@@ -120,24 +118,17 @@ function updateSelectionUI() {
     startBattleBtn.textContent = `BATTLE START (${selectedDeck.length}/3)`;
 }
 
-// --- Battle Logic ---
+// --- Battle & Merge ---
 function startBattle() {
     createGrid();
     renderGrid();
-    
-    // Spawn Timer
     let timeLeft = SPAWN_INTERVAL / 1000;
     spawnTimerId = setInterval(() => {
         if (currentState !== STATE.BATTLE) return;
         timeLeft -= 1;
-        if (timeLeft <= 0) {
-            spawnItem();
-            timeLeft = SPAWN_INTERVAL / 1000;
-        }
-        spawnTimerLabel.textContent = `${Math.ceil(timeLeft)}s`;
+        if (timeLeft <= 0) { spawnItem(); timeLeft = SPAWN_INTERVAL / 1000; }
+        spawnTimerLabel.textContent = `${Math.max(0, Math.ceil(timeLeft))}s`;
     }, 1000);
-
-    // Enemy Spawner
     enemySpawnerId = setInterval(() => {
         if (currentState !== STATE.BATTLE) return;
         spawnEnemy();
@@ -149,8 +140,7 @@ function createGrid() {
     for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
         const slot = document.createElement('div');
         slot.classList.add('grid-slot');
-        slot.addEventListener('dragover', (e) => e.preventDefault());
-        slot.addEventListener('drop', (e) => handleDrop(e, i));
+        slot.dataset.index = i;
         mergeGrid.appendChild(slot);
     }
 }
@@ -173,17 +163,83 @@ function renderGrid() {
             item.classList.add('unit-item', `lv${grid[i].level}`);
             item.style.background = UNIT_TYPES[grid[i].type].color;
             item.innerHTML = `<span>Lv${grid[i].level}</span>`;
-            item.draggable = true;
-            item.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', i));
+            item.style.touchAction = 'none'; // 重要: ブラウザのスクロールを防止
+            item.onpointerdown = (e) => handlePointerDown(e, i, item);
             slot.appendChild(item);
         }
     });
 }
 
-function handleDrop(e, targetIdx) {
-    const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
-    if (isNaN(sourceIdx)) return;
+// --- Custom Drag Logic (Pointer Events) ---
+function handlePointerDown(e, index, item) {
+    draggedElement = item.cloneNode(true);
+    dragSourceIdx = index;
     
+    // 元の要素を半透明に
+    item.style.opacity = '0.3';
+    
+    draggedElement.classList.add('dragging');
+    draggedElement.style.position = 'fixed';
+    draggedElement.style.zIndex = '1000';
+    draggedElement.style.pointerEvents = 'none';
+    draggedElement.style.width = item.clientWidth + 'px';
+    draggedElement.style.height = item.clientHeight + 'px';
+    
+    document.body.appendChild(draggedElement);
+    
+    updateDraggedPosition(e.clientX, e.clientY);
+}
+
+function handlePointerMove(e) {
+    if (!draggedElement) return;
+    updateDraggedPosition(e.clientX, e.clientY);
+    
+    // 下にある要素を特定してハイライト（オプション）
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    document.querySelectorAll('.grid-slot, #battle-field').forEach(el => el.classList.remove('drag-over'));
+    
+    if (target) {
+        const slot = target.closest('.grid-slot');
+        const field = target.closest('#battle-field');
+        if (slot) slot.classList.add('drag-over');
+        else if (field) field.classList.add('drag-over');
+    }
+}
+
+function handlePointerUp(e) {
+    if (!draggedElement) return;
+
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const targetSlot = target ? target.closest('.grid-slot') : null;
+    const targetField = target ? target.closest('#battle-field') : null;
+
+    if (targetSlot) {
+        const targetIdx = parseInt(targetSlot.dataset.index);
+        executeMerge(dragSourceIdx, targetIdx);
+    } else if (targetField) {
+        const unit = grid[dragSourceIdx];
+        if (unit && unit.level >= 1) {
+            deployUnit(unit);
+            grid[dragSourceIdx] = null;
+        }
+    }
+
+    // クリーンアップ
+    draggedElement.remove();
+    draggedElement = null;
+    dragSourceIdx = null;
+    document.querySelectorAll('.grid-slot, #battle-field').forEach(el => el.classList.remove('drag-over'));
+    renderGrid(); // 元の要素の透明度を戻すために再描画
+}
+
+function updateDraggedPosition(x, y) {
+    if (!draggedElement) return;
+    draggedElement.style.left = (x - draggedElement.clientWidth / 2) + 'px';
+    draggedElement.style.top = (y - draggedElement.clientHeight / 2) + 'px';
+}
+
+function executeMerge(sourceIdx, targetIdx) {
+    if (sourceIdx === targetIdx) return;
     const s = grid[sourceIdx];
     const t = grid[targetIdx];
     if (!s) return;
@@ -196,22 +252,7 @@ function handleDrop(e, targetIdx) {
         grid[sourceIdx] = null;
         score += (s.level + 1) * 10;
     }
-    renderGrid();
 }
-
-// Battle UI Drop
-battleField.addEventListener('dragover', (e) => e.preventDefault());
-battleField.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const idx = parseInt(e.dataTransfer.getData('text/plain'));
-    if (isNaN(idx)) return;
-    const unit = grid[idx];
-    if (unit && unit.level >= 1) {
-        deployUnit(unit);
-        grid[idx] = null;
-        renderGrid();
-    }
-});
 
 function deployUnit(unitData) {
     const data = UNIT_TYPES[unitData.type];
@@ -242,7 +283,6 @@ function spawnEnemy() {
     });
 }
 
-// --- Game Loop ---
 function gameLoop(time) {
     if (currentState === STATE.BATTLE) {
         updateEntities();
@@ -297,10 +337,9 @@ function updateUI() {
     scoreLabel.textContent = score;
     document.getElementById('player-hp-fill').style.width = `${playerHp}%`;
     document.getElementById('enemy-hp-fill').style.width = `${enemyHp}%`;
-    if (enemyHp <= 0 || playerHp <= 0) changeState(STATE.RESULT);
+    if ((enemyHp <= 0 || playerHp <= 0) && currentState === STATE.BATTLE) changeState(STATE.RESULT);
 }
 
-// --- Result Screen ---
 function showResultScreen() {
     const title = document.getElementById('result-title');
     title.textContent = enemyHp <= 0 ? "VICTORY!" : "DEFEAT...";
@@ -308,7 +347,6 @@ function showResultScreen() {
     document.getElementById('final-score').textContent = score;
 }
 
-// --- Debug ---
 function setupDebugCommands() {
     window.gameDebug = {
         deploy: (type, lv) => deployUnit({ type, level: lv }),
