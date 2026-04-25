@@ -109,19 +109,15 @@ body {
   opacity: 0.15; pointer-events: none;
 }
 
-.unit-item {
-  width: 80%; height: 80%; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 18px; z-index: 2;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-  animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
 @keyframes pop-in { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
 /* 共通UI */
 .logo { font-size: 48px; font-weight: 900; margin: 0; background: linear-gradient(to bottom, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .subtitle { font-size: 14px; color: var(--accent-color); letter-spacing: 4px; margin-bottom: 30px; }
+
+#unit-options {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 25px 0; width: 100%;
+}
 
 .unit-card {
   background: #1e293b; padding: 12px; border-radius: 16px; border: 2px solid transparent;
@@ -129,6 +125,18 @@ body {
   display: flex; flex-direction: column; align-items: center;
 }
 .unit-card.selected { border-color: var(--accent-color); background: #0f172a; }
+.unit-card:hover { transform: translateY(-4px); background: #2d3a4f; }
+
+.unit-item {
+  width: 80%; height: 80%; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 18px; z-index: 2;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.new-spawn {
+  animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
 
 .primary-btn {
   background: var(--accent-color); color: white; border: none; padding: 16px;
