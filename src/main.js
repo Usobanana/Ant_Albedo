@@ -133,6 +133,7 @@ function setupBaseCharacters() {
     const heroEl = document.createElement('div');
     heroEl.className = 'hero';
     heroEl.innerHTML = `
+        <span class="char-label">HERO</span>
         <div class="char-icon">🛡️</div>
         <div class="char-hp-bar"><div id="hero-hp-fill" class="char-hp-fill" style="background:var(--hp-player);width:100%"></div></div>
     `;
@@ -142,6 +143,7 @@ function setupBaseCharacters() {
     const kingEl = document.createElement('div');
     kingEl.className = 'demon-king';
     kingEl.innerHTML = `
+        <span class="char-label">DEMON KING</span>
         <div class="char-icon">👿</div>
         <div class="char-hp-bar"><div id="king-hp-fill" class="char-hp-fill" style="background:var(--hp-enemy);width:100%"></div></div>
     `;
