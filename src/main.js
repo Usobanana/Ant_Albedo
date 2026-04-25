@@ -199,20 +199,20 @@ function renderGrid() {
         }
 
         const unit = grid[i].unit;
-        // 既存のアイテムがあり、レベルや種類が変わっていなければ何もしない（アニメーション防止）
         if (existingItem && existingItem.dataset.type === unit.type && parseInt(existingItem.dataset.level) === unit.level) {
-            existingItem.style.opacity = '1'; // ドラッグ元の透明度を戻す
+            existingItem.style.opacity = '1';
             return;
         }
 
-        // それ以外の場合は再描画
         if (existingItem) existingItem.remove();
         
         const item = document.createElement('div');
         item.classList.add('unit-item', `lv${unit.level}`);
         if (grid[i].isNew) {
             item.classList.add('new-spawn');
-            grid[i].isNew = false; // アニメーション後はフラグを落とす
+            grid[i].isNew = false;
+            // アニメーション終了後にクラスを削除して再発を防ぐ
+            item.onanimationend = () => item.classList.remove('new-spawn');
         }
         item.dataset.type = unit.type;
         item.dataset.level = unit.level;
@@ -229,11 +229,16 @@ function handlePointerDown(e, index, item) {
     draggedElement = item.cloneNode(true);
     dragSourceIdx = index;
     item.style.opacity = '0.3';
+    
+    // ドラッグ中、他の全アイテムが判定を邪魔しないようにする
+    document.querySelectorAll('.unit-item').forEach(u => u.style.pointerEvents = 'none');
+    
     draggedElement.classList.add('dragging');
     draggedElement.style.position = 'fixed';
     draggedElement.style.zIndex = '2000';
     draggedElement.style.width = item.clientWidth + 'px';
     draggedElement.style.height = item.clientHeight + 'px';
+    draggedElement.style.pointerEvents = 'none'; // これ自体も判定を透過させる
     document.body.appendChild(draggedElement);
     updateDraggedPosition(e.clientX, e.clientY);
 }
@@ -254,8 +259,7 @@ function handlePointerMove(e) {
 function handlePointerUp(e) {
     if (!draggedElement) return;
 
-    // 指/マウスを離した瞬間の「下の要素」を正確に取得
-    // draggedElement自体は pointer-events: none なので、その下にあるスロットが取れるはず
+    // 指を離した場所の要素を取得
     const target = document.elementFromPoint(e.clientX, e.clientY);
     const slot = target ? target.closest('.grid-slot') : null;
     const field = target ? target.closest('#battle-field') : null;
@@ -264,11 +268,16 @@ function handlePointerUp(e) {
         executeMerge(dragSourceIdx, parseInt(slot.dataset.index));
     } else if (field) {
         const unit = grid[dragSourceIdx].unit;
-        if (unit && unit.level >= 1) { deployUnit(unit); grid[dragSourceIdx].unit = null; }
+        if (unit && unit.level >= 1) { 
+            deployUnit(unit); 
+            grid[dragSourceIdx].unit = null; 
+        }
     }
 
     draggedElement.remove(); draggedElement = null; dragSourceIdx = null;
     document.querySelectorAll('.grid-slot, #battle-field').forEach(el => el.classList.remove('drag-over'));
+    // pointer-eventsを元に戻す
+    document.querySelectorAll('.unit-item').forEach(u => u.style.pointerEvents = 'auto');
     renderGrid();
 }
 

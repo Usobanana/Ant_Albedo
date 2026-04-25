@@ -98,8 +98,22 @@ body {
   background: var(--slot-bg); border: 2px solid var(--grid-border);
   border-radius: 16px; position: relative;
   display: flex; align-items: center; justify-content: center;
-  aspect-ratio: 1 / 1; /* 歪み防止の決定打 */
+  width: 100%; aspect-ratio: 1 / 1; /* 歪み防止の決定打 */
   overflow: hidden;
+}
+
+.unit-item {
+  width: 80% !important; height: 80% !important;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 20px; z-index: 2;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  pointer-events: auto;
+}
+
+.new-spawn {
+  animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 /* クールタイムゲージ (Circular) */
@@ -126,17 +140,6 @@ body {
 }
 .unit-card.selected { border-color: var(--accent-color); background: #0f172a; }
 .unit-card:hover { transform: translateY(-4px); background: #2d3a4f; }
-
-.unit-item {
-  width: 80%; height: 80%; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 18px; z-index: 2;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-}
-
-.new-spawn {
-  animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
 
 .primary-btn {
   background: var(--accent-color); color: white; border: none; padding: 16px;
