@@ -20,15 +20,12 @@ let activeEnemies = [];
 let isAutoFollow = true;
 let lastUserScrollTime = 0;
 let lastFrameTime = 0;
-
-// Intervals
 let enemySpawnerId = null;
 
 // Drag State
 let draggedElement = null;
 let dragSourceIdx = null;
 
-// --- DOM Elements ---
 const screens = {
     [STATE.TITLE]: document.getElementById('title-screen'),
     [STATE.SELECTION]: document.getElementById('selection-screen'),
@@ -93,22 +90,26 @@ function resetGameData() {
     grid = Array(GRID_SIZE * GRID_SIZE).fill(null).map(() => ({
         unit: null, cooldown: 0, target: BASE_SPAWN_TIME, isNew: false
     }));
-    activeUnits = []; activeEnemies = [];
+    activeUnits = []; 
+    activeEnemies = [];
     battleContainer.innerHTML = '';
     isAutoFollow = true;
-    if (enemySpawnerId) clearInterval(enemySpawnerId);
+    lastFrameTime = 0; // 時間のリセット
+    if (enemySpawnerId) { clearInterval(enemySpawnerId); enemySpawnerId = null; }
 }
 
 // --- Battle Screen ---
 function startBattle() {
+    resetGameData(); // 念入りにリセット
     battleContainer.style.width = `${STAGE_WIDTH}px`;
     setupBaseCharacters();
     createGridUI();
     
+    // 初期配置
     grid.forEach(slot => {
         if (Math.random() > 0.7) {
-            slot.unit = { type: selectedDeck[Math.floor(Math.random() * 3)], level: 0 };
-            slot.isNew = true; // 初回配置もアニメーション対象
+            slot.unit = { type: selectedDeck[Math.floor(Math.random() * selectedDeck.length)], level: 0 };
+            slot.isNew = true;
         } else {
             slot.cooldown = Math.random() * BASE_SPAWN_TIME;
         }
@@ -165,7 +166,7 @@ function updateSpawns(dt) {
             if (slot.cooldown >= slot.target) {
                 slot.unit = { type: selectedDeck[Math.floor(Math.random() * selectedDeck.length)], level: 0 };
                 slot.cooldown = 0;
-                slot.isNew = true; // 新規出現フラグ
+                slot.isNew = true;
                 changed = true;
             }
         }
@@ -192,7 +193,6 @@ function renderGrid() {
     const slots = document.querySelectorAll('.grid-slot');
     slots.forEach((slot, i) => {
         const existingItem = slot.querySelector('.unit-item');
-        
         if (!grid[i].unit) {
             if (existingItem) existingItem.remove();
             return;
@@ -210,9 +210,10 @@ function renderGrid() {
         item.classList.add('unit-item', `lv${unit.level}`);
         if (grid[i].isNew) {
             item.classList.add('new-spawn');
-            grid[i].isNew = false;
-            // アニメーション終了後にクラスを削除して再発を防ぐ
-            item.onanimationend = () => item.classList.remove('new-spawn');
+            item.onanimationend = () => {
+                item.classList.remove('new-spawn');
+                grid[i].isNew = false;
+            };
         }
         item.dataset.type = unit.type;
         item.dataset.level = unit.level;
@@ -224,21 +225,18 @@ function renderGrid() {
     });
 }
 
-// --- Pointer Events ---
+// --- Pointer Events (Improved Detection) ---
 function handlePointerDown(e, index, item) {
     draggedElement = item.cloneNode(true);
     dragSourceIdx = index;
     item.style.opacity = '0.3';
-    
-    // ドラッグ中、他の全アイテムが判定を邪魔しないようにする
-    document.querySelectorAll('.unit-item').forEach(u => u.style.pointerEvents = 'none');
     
     draggedElement.classList.add('dragging');
     draggedElement.style.position = 'fixed';
     draggedElement.style.zIndex = '2000';
     draggedElement.style.width = item.clientWidth + 'px';
     draggedElement.style.height = item.clientHeight + 'px';
-    draggedElement.style.pointerEvents = 'none'; // これ自体も判定を透過させる
+    draggedElement.style.pointerEvents = 'none';
     document.body.appendChild(draggedElement);
     updateDraggedPosition(e.clientX, e.clientY);
 }
@@ -246,38 +244,49 @@ function handlePointerDown(e, index, item) {
 function handlePointerMove(e) {
     if (!draggedElement) return;
     updateDraggedPosition(e.clientX, e.clientY);
+    
+    // 視覚的なフィードバックのみ
     const target = document.elementFromPoint(e.clientX, e.clientY);
     document.querySelectorAll('.grid-slot, #battle-field').forEach(el => el.classList.remove('drag-over'));
     if (target) {
         const slot = target.closest('.grid-slot');
-        const field = target.closest('#battle-field');
         if (slot) slot.classList.add('drag-over');
-        else if (field) field.classList.add('drag-over');
+        else if (target.closest('#battle-field')) document.getElementById('battle-field').classList.add('drag-over');
     }
 }
 
 function handlePointerUp(e) {
     if (!draggedElement) return;
 
-    // 指を離した場所の要素を取得
-    const target = document.elementFromPoint(e.clientX, e.clientY);
-    const slot = target ? target.closest('.grid-slot') : null;
-    const field = target ? target.closest('#battle-field') : null;
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    // 数学的なスロット判定 (elementFromPointに頼らない)
+    let targetSlotIdx = -1;
+    const slots = document.querySelectorAll('.grid-slot');
+    slots.forEach((slot, idx) => {
+        const rect = slot.getBoundingClientRect();
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            targetSlotIdx = idx;
+        }
+    });
 
-    if (slot) {
-        executeMerge(dragSourceIdx, parseInt(slot.dataset.index));
-    } else if (field) {
-        const unit = grid[dragSourceIdx].unit;
-        if (unit && unit.level >= 1) { 
-            deployUnit(unit); 
-            grid[dragSourceIdx].unit = null; 
+    if (targetSlotIdx !== -1) {
+        executeMerge(dragSourceIdx, targetSlotIdx);
+    } else {
+        // バトルフィールドへのドロップ判定
+        const fieldRect = battleField.getBoundingClientRect();
+        if (x >= fieldRect.left && x <= fieldRect.right && y >= fieldRect.top && y <= fieldRect.bottom) {
+            const unit = grid[dragSourceIdx].unit;
+            if (unit && unit.level >= 1) { 
+                deployUnit(unit); 
+                grid[dragSourceIdx].unit = null; 
+            }
         }
     }
 
     draggedElement.remove(); draggedElement = null; dragSourceIdx = null;
     document.querySelectorAll('.grid-slot, #battle-field').forEach(el => el.classList.remove('drag-over'));
-    // pointer-eventsを元に戻す
-    document.querySelectorAll('.unit-item').forEach(u => u.style.pointerEvents = 'auto');
     renderGrid();
 }
 
@@ -295,7 +304,7 @@ function executeMerge(sIdx, tIdx) {
     if (t && s.type === t.type && s.level === t.level) {
         grid[tIdx].unit = { type: s.type, level: s.level + 1 };
         grid[sIdx].unit = null;
-        grid[tIdx].isNew = true; // マージ後の進化もアニメーション対象に
+        grid[tIdx].isNew = true;
     } else if (!t) {
         grid[tIdx].unit = s; grid[sIdx].unit = null;
     }
@@ -309,7 +318,7 @@ function deployUnit(unitData) {
     el.style.background = data.color;
     el.innerHTML = `<span>Lv${unitData.level}</span>`;
     battleContainer.appendChild(el);
-    activeUnits.push({ ...unitData, x: 100, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp * (1 + unitData.level * 0.5), atk: data.stats.atk * (unitData.level + 1), spd: data.stats.spd, el: el });
+    activeUnits.push({ ...unitData, x: 150, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp * (1 + unitData.level * 0.5), atk: data.stats.atk * (unitData.level + 1), spd: data.stats.spd, el: el });
 }
 
 function spawnEnemy() {
@@ -318,13 +327,20 @@ function spawnEnemy() {
     el.classList.add('battle-unit', 'enemy');
     el.innerHTML = `<span>💀</span>`;
     battleContainer.appendChild(el);
-    activeEnemies.push({ type: 'SKELETON', x: STAGE_WIDTH - 100, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp, atk: data.stats.atk, spd: data.stats.spd, el: el });
+    activeEnemies.push({ type: 'SKELETON', x: STAGE_WIDTH - 150, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp, atk: data.stats.atk, spd: data.stats.spd, el: el });
 }
 
 function gameLoop(currentTime) {
-    if (!lastFrameTime) lastFrameTime = currentTime;
-    const dt = currentTime - lastFrameTime;
+    if (!lastFrameTime) {
+        lastFrameTime = currentTime;
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+    let dt = currentTime - lastFrameTime;
     lastFrameTime = currentTime;
+    
+    // 即時敗北防止: dtに上限を設ける (100ms = 10fps以下は無視)
+    if (dt > 100) dt = 16; 
 
     if (currentState === STATE.BATTLE) {
         updateEntities(dt);
@@ -339,8 +355,8 @@ function gameLoop(currentTime) {
 }
 
 function updateEntities(dt) {
-    activeUnits.forEach(u => { if (!u.isFighting) u.x += u.spd * (dt / 50); u.el.style.left = `${u.x}px`; u.el.style.top = `${u.y}%`; if (u.x >= STAGE_WIDTH - 150) { enemyHp = Math.max(0, enemyHp - u.atk); u.hp = 0; } u.isFighting = false; });
-    activeEnemies.forEach(e => { if (!e.isFighting) e.x -= e.spd * (dt / 50); e.el.style.left = `${e.x}px`; e.el.style.top = `${e.y}%`; if (e.x <= 150) { playerHp = Math.max(0, playerHp - e.atk); e.hp = 0; } e.isFighting = false; });
+    activeUnits.forEach(u => { if (!u.isFighting) u.x += u.spd * (dt / 50); u.el.style.left = `${u.x}px`; u.el.style.top = `${u.y}%`; if (u.x >= STAGE_WIDTH - 100) { enemyHp = Math.max(0, enemyHp - u.atk); u.hp = 0; } u.isFighting = false; });
+    activeEnemies.forEach(e => { if (!e.isFighting) e.x -= e.spd * (dt / 50); e.el.style.left = `${e.x}px`; e.el.style.top = `${e.y}%`; if (e.x <= 100) { playerHp = Math.max(0, playerHp - e.atk); e.hp = 0; } e.isFighting = false; });
 }
 
 function checkCollisions(time) {
