@@ -2,7 +2,7 @@ import { UNIT_TYPES, ENEMY_TYPES } from './data.js';
 
 // --- Constants & State ---
 const GRID_SIZE = 5;
-const BASE_SPAWN_TIME = 4000;
+const BASE_SPAWN_TIME = 6000; // 4000 -> 6000 (デザイナー調整)
 const ENEMY_SPAWN_INTERVAL = 4500;
 const STAGE_WIDTH = 2500;
 
@@ -281,8 +281,13 @@ function handlePointerUp(e) {
         if (x >= fieldRect.left && x <= fieldRect.right && y >= fieldRect.top && y <= fieldRect.bottom) {
             const unit = grid[dragSourceIdx].unit;
             if (unit && unit.level >= 1) { 
-                console.log("Deploying unit to battlefield");
-                deployUnit(unit); 
+                const dropXInField = x - fieldRect.left + battleField.scrollLeft;
+                let frontX = 150;
+                activeUnits.forEach(u => { if (u.x > frontX) frontX = u.x; });
+                const spawnX = Math.max(150, Math.min(dropXInField, frontX));
+                
+                console.log(`Deploying unit at X: ${spawnX}`);
+                deployUnit(unit, spawnX); 
                 grid[dragSourceIdx].unit = null; 
             }
         }
@@ -314,14 +319,14 @@ function executeMerge(sIdx, tIdx) {
 }
 
 // --- Battle Logic ---
-function deployUnit(unitData) {
+function deployUnit(unitData, x = 150) {
     const data = UNIT_TYPES[unitData.type];
     const el = document.createElement('div');
     el.classList.add('battle-unit');
     el.style.background = data.color;
     el.innerHTML = `<span>Lv${unitData.level}</span>`;
     battleContainer.appendChild(el);
-    activeUnits.push({ ...unitData, x: 150, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp * (1 + unitData.level * 0.5), atk: data.stats.atk * (unitData.level + 1), spd: data.stats.spd, el: el });
+    activeUnits.push({ ...unitData, x: x, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp * (1 + unitData.level * 0.5), atk: data.stats.atk * (unitData.level + 1), spd: data.stats.spd, el: el });
 }
 
 function spawnEnemy() {
