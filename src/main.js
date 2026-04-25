@@ -74,6 +74,7 @@ function changeState(newState) {
     });
 
     if (currentState === STATE.TITLE) {
+        selectedDeck = [];
         resetGameData();
     } else if (currentState === STATE.SELECTION) {
         showSelectionScreen();
@@ -86,7 +87,7 @@ function changeState(newState) {
 
 function resetGameData() {
     playerHp = 100; enemyHp = 100;
-    selectedDeck = [];
+    // selectedDeckのリセットはここでは行わない（編成画面から持ち込むため）
     grid = Array(GRID_SIZE * GRID_SIZE).fill(null).map(() => ({
         unit: null, cooldown: 0, target: BASE_SPAWN_TIME, isNew: false, hasAnimated: false
     }));
