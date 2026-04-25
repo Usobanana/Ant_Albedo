@@ -88,7 +88,7 @@ function resetGameData() {
     playerHp = 100; enemyHp = 100;
     selectedDeck = [];
     grid = Array(GRID_SIZE * GRID_SIZE).fill(null).map(() => ({
-        unit: null, cooldown: 0, target: BASE_SPAWN_TIME, isNew: false
+        unit: null, cooldown: 0, target: BASE_SPAWN_TIME, isNew: false, hasAnimated: false
     }));
     activeUnits = []; 
     activeEnemies = [];
@@ -208,8 +208,10 @@ function renderGrid() {
         
         const item = document.createElement('div');
         item.classList.add('unit-item', `lv${unit.level}`);
-        if (grid[i].isNew) {
+        // データ層のフラグを確認してアニメーションを制御
+        if (grid[i].isNew && !grid[i].hasAnimated) {
             item.classList.add('new-spawn');
+            grid[i].hasAnimated = true; // 一度アニメーションしたことを記録
             item.onanimationend = () => {
                 item.classList.remove('new-spawn');
                 grid[i].isNew = false;
@@ -225,7 +227,7 @@ function renderGrid() {
     });
 }
 
-// --- Pointer Events (Improved Detection) ---
+// --- Pointer Events (Improved Detection with Logging) ---
 function handlePointerDown(e, index, item) {
     draggedElement = item.cloneNode(true);
     dragSourceIdx = index;
@@ -245,7 +247,6 @@ function handlePointerMove(e) {
     if (!draggedElement) return;
     updateDraggedPosition(e.clientX, e.clientY);
     
-    // 視覚的なフィードバックのみ
     const target = document.elementFromPoint(e.clientX, e.clientY);
     document.querySelectorAll('.grid-slot, #battle-field').forEach(el => el.classList.remove('drag-over'));
     if (target) {
@@ -261,7 +262,6 @@ function handlePointerUp(e) {
     const x = e.clientX;
     const y = e.clientY;
     
-    // 数学的なスロット判定 (elementFromPointに頼らない)
     let targetSlotIdx = -1;
     const slots = document.querySelectorAll('.grid-slot');
     slots.forEach((slot, idx) => {
@@ -271,14 +271,16 @@ function handlePointerUp(e) {
         }
     });
 
+    console.log(`Drop at (${x}, ${y}), Target Slot: ${targetSlotIdx}`);
+
     if (targetSlotIdx !== -1) {
         executeMerge(dragSourceIdx, targetSlotIdx);
     } else {
-        // バトルフィールドへのドロップ判定
         const fieldRect = battleField.getBoundingClientRect();
         if (x >= fieldRect.left && x <= fieldRect.right && y >= fieldRect.top && y <= fieldRect.bottom) {
             const unit = grid[dragSourceIdx].unit;
             if (unit && unit.level >= 1) { 
+                console.log("Deploying unit to battlefield");
                 deployUnit(unit); 
                 grid[dragSourceIdx].unit = null; 
             }
