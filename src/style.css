@@ -22,71 +22,25 @@ body {
 
 #app { height: 100%; width: 100%; position: relative; }
 
-/* --- 画面管理の基盤 (中央揃えの徹底) --- */
 .screen {
   position: absolute; inset: 0;
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center; /* 徹底的に中央寄せ */
+  align-items: center; justify-content: center;
   transition: opacity 0.4s ease;
   z-index: 10;
 }
 .hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
 .overlay-content {
-  background: var(--panel-bg);
-  padding: 40px;
-  border-radius: 24px;
-  width: 90%;
-  max-width: 420px;
-  text-align: center;
-  border: 1px solid var(--grid-border);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-  display: flex; flex-direction: column;
-  align-items: center;
+  background: var(--panel-bg); padding: 40px; border-radius: 24px;
+  width: 90%; max-width: 420px; text-align: center;
+  border: 1px solid var(--grid-border); box-shadow: 0 20px 60px rgba(0,0,0,0.8);
 }
 
-/* --- 1. タイトル --- */
-#title-screen { background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); }
-.logo { font-size: 52px; font-weight: 900; margin: 0; background: linear-gradient(to bottom, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.subtitle { font-size: 16px; color: var(--accent-color); letter-spacing: 4px; margin-bottom: 30px; }
-
-/* --- 2. 編成画面 (カードUIの復元) --- */
-#unit-options {
-  display: grid !important;
-  grid-template-columns: repeat(3, 1fr) !important;
-  gap: 12px;
-  margin: 25px 0;
-  width: 100%;
-}
-
-.unit-card {
-  background: #1e293b;
-  padding: 15px;
-  border-radius: 16px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex; flex-direction: column; align-items: center;
-}
-.unit-card:hover { transform: translateY(-4px); background: #2d3a4f; }
-.unit-card.selected { border-color: var(--accent-color); background: #0f172a; box-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
-
-.unit-icon { width: 36px; height: 36px; border-radius: 50%; margin-bottom: 8px; }
-.unit-name { font-size: 11px; font-weight: 900; color: #94a3b8; }
-.unit-card.selected .unit-name { color: white; }
-
-.check-mark {
-  position: absolute; top: -8px; right: -8px; background: var(--accent-color);
-  width: 24px; height: 24px; border-radius: 50%; color: white;
-  display: none; align-items: center; justify-content: center; font-size: 14px;
-}
-.unit-card.selected .check-mark { display: flex; }
-
-/* --- 3. バトル画面 --- */
+/* --- Battle Area --- */
 #battle-field {
-  width: 100%; height: 40%; min-height: 250px;
-  position: relative; background: #020617; border-bottom: 4px solid var(--grid-border);
+  width: 100%; height: 35%; min-height: 220px;
+  position: relative; background: #020617; border-bottom: 2px solid var(--grid-border);
   overflow-x: auto; overflow-y: hidden;
 }
 #battle-field::-webkit-scrollbar { display: none; }
@@ -94,7 +48,7 @@ body {
 #battle-container {
   position: relative; height: 100%;
   background: linear-gradient(180deg, #1e1b4b 0%, #020617 100%);
-  background-image: linear-gradient(transparent 75%, rgba(56, 189, 248, 0.1) 75%, rgba(56, 189, 248, 0.1) 77%, transparent 77%);
+  background-image: linear-gradient(transparent 75%, rgba(56, 189, 248, 0.05) 75%, rgba(56, 189, 248, 0.05) 77%, transparent 77%);
 }
 
 .hero, .demon-king {
@@ -104,57 +58,88 @@ body {
 .hero { left: 40px; }
 .demon-king { right: 40px; }
 
-/* HPバーをアイコンの上に配置するレイアウト */
 .char-label { font-size: 10px; font-weight: 900; margin-bottom: 4px; color: var(--accent-color); opacity: 0.8; }
-.char-hp-bar { width: 60px; height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px; }
+.char-hp-bar { width: 50px; height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
 .char-hp-fill { height: 100%; transition: width 0.3s; }
-.char-icon { font-size: 52px; filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.3)); }
+.char-icon { font-size: 40px; filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.3)); }
 
-.battle-unit {
-  position: absolute; width: 44px; height: 44px; border-radius: 12px;
+/* --- Minimap --- */
+#minimap-container {
+  width: 100%; height: 40px; background: #0f172a;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 900; box-shadow: 0 8px 16px rgba(0,0,0,0.6);
-  border: 2px solid rgba(255,255,255,0.4); transform: translate(-50%, -50%);
+  border-bottom: 2px solid var(--grid-border);
 }
-
-/* --- 4. マージエリア --- */
-#game-ui {
-  width: 100%; height: 50px; background: var(--panel-bg);
-  display: flex; align-items: center; justify-content: space-around;
-  font-weight: 700; border-bottom: 2px solid var(--grid-border);
+#minimap {
+  position: relative; width: 90%; height: 12px;
+  background: #1e293b; border-radius: 6px; overflow: hidden;
 }
+#minimap-viewport {
+  position: absolute; height: 100%; background: rgba(56, 189, 248, 0.3);
+  border: 1px solid var(--accent-color); border-radius: 4px; pointer-events: none;
+}
+.mini-dot {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%;
+  top: 50%; transform: translate(-50%, -50%);
+}
+.mini-dot.ally { background: var(--hp-player); box-shadow: 0 0 5px var(--hp-player); }
+.mini-dot.enemy { background: var(--hp-enemy); box-shadow: 0 0 5px var(--hp-enemy); }
+.mini-dot.hero { width: 6px; height: 6px; background: white; }
+.mini-dot.king { width: 6px; height: 6px; background: gold; }
 
+/* --- Merge Area --- */
 #merge-field {
   width: 100%; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 #merge-grid {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
-  width: 100%; max-width: 420px; aspect-ratio: 1 / 1;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+  width: 100%; max-width: 400px; aspect-ratio: 1 / 1;
 }
 .grid-slot {
   background: var(--slot-bg); border: 2px solid var(--grid-border);
-  border-radius: 16px; display: flex; align-items: center; justify-content: center;
+  border-radius: 16px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 1 / 1; /* 歪み防止の決定打 */
+  overflow: hidden;
+}
+
+/* クールタイムゲージ (Circular) */
+.spawn-gauge {
+  position: absolute; inset: 4px; border-radius: 50%;
+  background: conic-gradient(var(--accent-color) 0%, transparent 0%);
+  opacity: 0.15; pointer-events: none;
 }
 
 .unit-item {
-  width: 85%; height: 85%; border-radius: 12px;
+  width: 80%; height: 80%; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 20px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  font-weight: 900; font-size: 18px; z-index: 2;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
   animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes pop-in { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-/* 汎用ボタン */
-.primary-btn {
-  background: var(--accent-color); color: white; border: none; padding: 18px;
-  border-radius: 14px; font-weight: 900; font-size: 18px; cursor: pointer; transition: 0.2s;
-  width: 100%;
-}
-.primary-btn:hover { filter: brightness(1.1); transform: scale(1.02); }
-.primary-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+/* 共通UI */
+.logo { font-size: 48px; font-weight: 900; margin: 0; background: linear-gradient(to bottom, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.subtitle { font-size: 14px; color: var(--accent-color); letter-spacing: 4px; margin-bottom: 30px; }
 
-.secondary-btn { background: transparent; color: #64748b; border: none; padding: 12px; cursor: pointer; margin-top: 10px; }
+.unit-card {
+  background: #1e293b; padding: 12px; border-radius: 16px; border: 2px solid transparent;
+  cursor: pointer; position: relative; transition: all 0.2s;
+  display: flex; flex-direction: column; align-items: center;
+}
+.unit-card.selected { border-color: var(--accent-color); background: #0f172a; }
+
+.primary-btn {
+  background: var(--accent-color); color: white; border: none; padding: 16px;
+  border-radius: 12px; font-weight: 900; font-size: 18px; cursor: pointer; width: 100%;
+}
+.primary-btn:disabled { opacity: 0.3; }
 
 .lv0 { background: #64748b; } .lv1 { background: #10b981; } .lv2 { background: #3b82f6; } .lv3 { background: #f59e0b; }
+.battle-unit {
+  position: absolute; width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+  border: 2px solid rgba(255,255,255,0.4); transform: translate(-50%, -50%);
+}

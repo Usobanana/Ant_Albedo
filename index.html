@@ -37,14 +37,14 @@
     <!-- 3. バトル・マージ画面 (メインゲーム) -->
     <section id="battle-screen" class="screen hidden">
       <div id="battle-field">
-        <!-- 拠点情報はJSで動的に生成（勇者・魔王キャラクターに統合） -->
         <div id="battle-container"></div>
       </div>
 
-      <div id="game-ui">
-        <div id="status-panel">
-          <span>SCORE: <span id="score">0</span></span>
-          <span>NEXT: <span id="spawn-timer">3s</span></span>
+      <!-- ミニマップ兼カメラスクローラー -->
+      <div id="minimap-container">
+        <div id="minimap">
+          <div id="minimap-viewport"></div>
+          <div id="minimap-entities"></div>
         </div>
       </div>
 
@@ -57,9 +57,6 @@
     <section id="result-screen" class="screen hidden">
       <div class="overlay-content result-card">
         <h2 id="result-title">VICTORY!</h2>
-        <div class="result-stats">
-          <p>獲得スコア: <span id="final-score">0</span></p>
-        </div>
         <button id="back-to-selection-btn" class="primary-btn">CONTINUE</button>
       </div>
     </section>
