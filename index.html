@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Merge & Defense - Ant Albedo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 1. タイトル画面 -->
+    <section id="title-screen" class="screen">
+      <div class="overlay-content">
+        <h1 class="logo">Ant Albedo</h1>
+        <p class="subtitle">Merge & Defense</p>
+        <button id="to-selection-btn" class="primary-btn pulse">START GAME</button>
+      </div>
+    </section>
+
+    <!-- 2. ステージ・デッキ選択画面 -->
+    <section id="selection-screen" class="screen hidden">
+      <div class="overlay-content">
+        <h2 class="stage-title">STAGE 1: はじまりの草原</h2>
+        <div id="deck-selection">
+          <p>デッキ編成 (3つ選択)：</p>
+          <div id="unit-options"></div>
+        </div>
+        <button id="start-battle-btn" class="primary-btn" disabled>BATTLE START (0/3)</button>
+        <button id="back-to-title-btn" class="secondary-btn">BACK</button>
+      </div>
+    </section>
+
+    <!-- 3. バトル・マージ画面 (メインゲーム) -->
+    <section id="battle-screen" class="screen hidden">
+      <div id="battle-field">
+        <div class="base-container">
+          <div id="player-base" class="base">
+            <div class="hp-bar"><div id="player-hp-fill" class="hp-fill"></div></div>
+            <span class="label">PLAYER</span>
+          </div>
+          <div id="enemy-base" class="base">
+            <div class="hp-bar"><div id="enemy-hp-fill" class="hp-fill"></div></div>
+            <span class="label">ENEMY</span>
+          </div>
+        </div>
+        <div id="battle-container"></div>
+      </div>
+
+      <div id="game-ui">
+        <div id="status-panel">
+          <span>SCORE: <span id="score">0</span></span>
+          <span>NEXT: <span id="spawn-timer">3s</span></span>
+        </div>
+      </div>
+
+      <div id="merge-field">
+        <div id="merge-grid"></div>
+      </div>
+    </section>
+
+    <!-- 4. リザルト画面 -->
+    <section id="result-screen" class="screen hidden">
+      <div class="overlay-content result-card">
+        <h2 id="result-title">VICTORY!</h2>
+        <div class="result-stats">
+          <p>獲得スコア: <span id="final-score">0</span></p>
+        </div>
+        <button id="back-to-selection-btn" class="primary-btn">CONTINUE</button>
+      </div>
+    </section>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
