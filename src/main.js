@@ -9,9 +9,9 @@ let ENEMY_HP_SCALE = 1.0; // デバッグ用
 const STATE = { TITLE: 'title', SELECTION: 'selection', BATTLE: 'battle', RESULT: 'result' };
 
 const STAGE_CONFIG = {
-    1: { name: "はじまりの草原", hpScale: 1.0, waveGrowth: 40, maxWave: 2, spawnInterval: 8000 },
-    2: { name: "燻る廃村", hpScale: 1.5, waveGrowth: 30, maxWave: 4, spawnInterval: 6000 },
-    3: { name: "最果ての魔王城", hpScale: 2.0, waveGrowth: 20, maxWave: 6, spawnInterval: 4000 }
+    1: { name: "はじまりの草原", hpScale: 1.0, waveGrowth: 60, maxWave: 1, spawnInterval: 10000 },
+    2: { name: "燻る廃村", hpScale: 1.5, waveGrowth: 40, maxWave: 3, spawnInterval: 7000 },
+    3: { name: "最果ての魔王城", hpScale: 2.0, waveGrowth: 20, maxWave: 5, spawnInterval: 5000 }
 };
 
 let currentStage = 1;
@@ -405,8 +405,8 @@ function deployUnit(unitData, x = 150) {
 
 function spawnEnemy() {
     const config = STAGE_CONFIG[currentStage];
-    // waveGrowthを秒単位にしたので、battleElapsed(ms) / (waveGrowth * 1000)
-    const waveSize = Math.min(config.maxWave, 1 + Math.floor(battleElapsed / (config.waveGrowth * 1000)));
+    // ウェーブサイズをより厳格に管理（1分ごとに+1体、最大数はconfigに従う）
+    const waveSize = Math.min(config.maxWave, 1 + Math.floor(battleElapsed / 60000));
     
     for (let i = 0; i < waveSize; i++) {
         const isLarge = Math.random() > (0.8 + (currentStage * 0.05)); // ステージが進むと大型が出やすい
@@ -457,7 +457,8 @@ function gameLoop(currentTime) {
         enemyTimer += dt;
 
         const config = STAGE_CONFIG[currentStage];
-        const currentEnemyInterval = Math.max(1500, config.spawnInterval - (battleElapsed / 1000) * 30);
+        // 出現間隔の短縮をさらに緩やかに (100秒かけて3秒短縮する程度)
+        const currentEnemyInterval = Math.max(2000, config.spawnInterval - (battleElapsed / 1000) * 20);
         
         if (enemyTimer >= currentEnemyInterval) {
             spawnEnemy();
