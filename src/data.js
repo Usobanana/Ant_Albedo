@@ -47,14 +47,14 @@ export const ENEMY_TYPES = {
         name: 'スケルトン',
         icon: '💀',
         color: '#e2e8f0', // Whiteish
-        stats: { hp: 50, atk: 5, spd: 1, range: 30 }
+        stats: { hp: 100, atk: 10, spd: 1, range: 30 }
     },
     LARGE_SKELETON: {
         id: 'LARGE_SKELETON',
         name: 'ラージスケルトン',
         icon: '☠️',
         color: '#94a3b8', // Grayish
-        stats: { hp: 200, atk: 15, spd: 0.7, range: 40 }
+        stats: { hp: 400, atk: 30, spd: 0.7, range: 40 }
     }
 };
 
