@@ -9,9 +9,9 @@ let ENEMY_HP_SCALE = 1.0; // デバッグ用
 const STATE = { TITLE: 'title', SELECTION: 'selection', BATTLE: 'battle', RESULT: 'result' };
 
 const STAGE_CONFIG = {
-    1: { name: "はじまりの草原", hpScale: 1.0, waveGrowth: 40000, maxWave: 3 },
-    2: { name: "燻る廃村", hpScale: 1.5, waveGrowth: 30000, maxWave: 5 },
-    3: { name: "最果ての魔王城", hpScale: 2.0, waveGrowth: 20000, maxWave: 8 }
+    1: { name: "はじまりの草原", hpScale: 1.0, waveGrowth: 40, maxWave: 2, spawnInterval: 8000 },
+    2: { name: "燻る廃村", hpScale: 1.5, waveGrowth: 30, maxWave: 4, spawnInterval: 6000 },
+    3: { name: "最果ての魔王城", hpScale: 2.0, waveGrowth: 20, maxWave: 6, spawnInterval: 4000 }
 };
 
 let currentStage = 1;
@@ -337,9 +337,8 @@ function handlePointerUp(e) {
     if (targetSlotIdx !== -1) {
         executeMerge(dragSourceIdx, targetSlotIdx);
     } else if (moveDist < 40) { 
-        // 短押し（40px以下の移動）なら拠点にクイック召喚
+        // 短押し判定：Lv1以上のユニットを拠点へクイック召喚
         if (unit && unit.level >= 1) {
-            console.log("Quick deploying to base");
             deployUnit(unit, 150);
             grid[dragSourceIdx].unit = null;
         }
@@ -351,8 +350,6 @@ function handlePointerUp(e) {
                 let frontX = 150;
                 activeUnits.forEach(u => { if (u.x > frontX) frontX = u.x; });
                 const spawnX = Math.max(150, Math.min(dropXInField, frontX));
-                
-                console.log(`Deploying unit at X: ${spawnX}`);
                 deployUnit(unit, spawnX); 
                 grid[dragSourceIdx].unit = null; 
             }
@@ -408,8 +405,8 @@ function deployUnit(unitData, x = 150) {
 
 function spawnEnemy() {
     const config = STAGE_CONFIG[currentStage];
-    // 経過時間に応じて同時出現数を増やす
-    const waveSize = Math.min(config.maxWave, 1 + Math.floor(battleElapsed / config.waveGrowth));
+    // waveGrowthを秒単位にしたので、battleElapsed(ms) / (waveGrowth * 1000)
+    const waveSize = Math.min(config.maxWave, 1 + Math.floor(battleElapsed / (config.waveGrowth * 1000)));
     
     for (let i = 0; i < waveSize; i++) {
         const isLarge = Math.random() > (0.8 + (currentStage * 0.05)); // ステージが進むと大型が出やすい
@@ -459,8 +456,9 @@ function gameLoop(currentTime) {
         battleElapsed += dt;
         enemyTimer += dt;
 
-        // 敵の出現間隔を徐々に短縮 (4.5s -> 1.5s)
-        const currentEnemyInterval = Math.max(1500, 4500 - (battleElapsed / 1000) * 50);
+        const config = STAGE_CONFIG[currentStage];
+        const currentEnemyInterval = Math.max(1500, config.spawnInterval - (battleElapsed / 1000) * 30);
+        
         if (enemyTimer >= currentEnemyInterval) {
             spawnEnemy();
             enemyTimer = 0;
