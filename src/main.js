@@ -8,6 +8,7 @@ let ENEMY_HP_SCALE = 1.0; // デバッグ用
 
 const STATE = { TITLE: 'title', SELECTION: 'selection', BATTLE: 'battle', RESULT: 'result' };
 
+let currentStage = 1;
 let currentState = STATE.TITLE;
 let grid = [];
 let playerHp = 100;
@@ -142,7 +143,10 @@ function resetGameData() {
 
 // --- Battle Screen ---
 function startBattle() {
-    resetGameData(); // 念入りにリセット
+    resetGameData();
+    // ステージに応じたHP倍率を設定
+    ENEMY_HP_SCALE = currentStage === 1 ? 1.0 : (currentStage === 2 ? 1.5 : 2.0);
+    
     battleContainer.style.width = `${STAGE_WIDTH}px`;
     setupBaseCharacters();
     createGridUI();
@@ -397,25 +401,39 @@ function deployUnit(unitData, x = 150) {
 }
 
 function spawnEnemy() {
-    const isLarge = Math.random() > 0.8;
-    const typeKey = isLarge ? 'LARGE_SKELETON' : 'SKELETON';
-    const data = ENEMY_TYPES[typeKey];
+    // 経過時間に応じて同時出現数を増やす (20秒ごとに+2、最大10)
+    const waveSize = Math.min(10, 1 + Math.floor(battleElapsed / 10000) * 2);
     
-    const el = document.createElement('div');
-    el.classList.add('battle-unit', 'enemy');
-    if (isLarge) {
-        el.style.width = '54px'; el.style.height = '54px';
-        el.style.zIndex = '51';
+    for (let i = 0; i < waveSize; i++) {
+        const isLarge = Math.random() > (0.8 + (currentStage * 0.05)); // ステージが進むと大型が出やすい
+        const typeKey = isLarge ? 'LARGE_SKELETON' : 'SKELETON';
+        const data = ENEMY_TYPES[typeKey];
+        
+        const el = document.createElement('div');
+        el.classList.add('battle-unit', 'enemy');
+        if (isLarge) {
+            el.style.width = '54px'; el.style.height = '54px';
+            el.style.zIndex = '51';
+        }
+        
+        el.innerHTML = `
+            <div class="unit-hp-bar"><div class="unit-hp-fill" style="background:var(--hp-enemy);width:100%"></div></div>
+            <div style="font-size:${isLarge ? '24px' : '16px'}">${data.icon}</div>
+            <div style="font-size:${isLarge ? '10px' : '8px'};opacity:0.8">Lv0</div>
+        `;
+        el.style.flexDirection = 'column';
+        battleContainer.appendChild(el);
+        activeEnemies.push({ 
+            type: typeKey, 
+            x: STAGE_WIDTH - 150 + (i * 30), // ウェーブに少しの前後差をつける
+            y: 50 + (Math.random() - 0.5) * 25, 
+            hp: data.stats.hp * ENEMY_HP_SCALE, 
+            maxHp: data.stats.hp * ENEMY_HP_SCALE, 
+            atk: data.stats.atk, 
+            spd: data.stats.spd, 
+            el: el 
+        });
     }
-    
-    el.innerHTML = `
-        <div class="unit-hp-bar"><div class="unit-hp-fill" style="background:var(--hp-enemy);width:100%"></div></div>
-        <div style="font-size:${isLarge ? '24px' : '16px'}">${data.icon}</div>
-        <div style="font-size:${isLarge ? '10px' : '8px'};opacity:0.8">Lv0</div>
-    `;
-    el.style.flexDirection = 'column';
-    battleContainer.appendChild(el);
-    activeEnemies.push({ type: typeKey, x: STAGE_WIDTH - 150, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp * ENEMY_HP_SCALE, maxHp: data.stats.hp * ENEMY_HP_SCALE, atk: data.stats.atk, spd: data.stats.spd, el: el });
 }
 
 function gameLoop(currentTime) {
@@ -482,11 +500,15 @@ function updateEntityHPBar(ent) {
 }
 
 function checkCollisions(time) {
+    const BASE_ATK = 5;
+    const BASE_RANGE = 50;
+
     // 味方の攻撃判定
     activeUnits.forEach(u => {
         const uData = UNIT_TYPES[u.type];
         const range = uData.stats.range;
         
+        // 対エネミー
         activeEnemies.forEach(e => {
             const dist = Math.abs(u.x - e.x);
             if (dist < range && Math.abs(u.y - e.y) < 30 && u.x < e.x) {
@@ -498,6 +520,15 @@ function checkCollisions(time) {
                 }
             }
         });
+
+        // 対魔王 (拠点)
+        if (STAGE_WIDTH - u.x < range) {
+            u.isFighting = true;
+            if (!u.lastAtk || time - u.lastAtk > 1000) {
+                enemyHp = Math.max(0, enemyHp - u.atk);
+                u.lastAtk = time;
+            }
+        }
     });
 
     // 敵の攻撃判定
@@ -505,6 +536,7 @@ function checkCollisions(time) {
         const eData = ENEMY_TYPES[e.type];
         const range = eData.stats.range;
 
+        // 対味方
         activeUnits.forEach(u => {
             const dist = Math.abs(u.x - e.x);
             if (dist < range && Math.abs(u.y - e.y) < 30 && e.x > u.x) {
@@ -516,6 +548,37 @@ function checkCollisions(time) {
                 }
             }
         });
+
+        // 対ヒーロー (拠点)
+        if (e.x < range + 100) {
+            e.isFighting = true;
+            if (!e.lastAtk || time - e.lastAtk > 1000) {
+                playerHp = Math.max(0, playerHp - e.atk);
+                e.lastAtk = time;
+            }
+        }
+    });
+
+    // ヒーロー自らの攻撃 (Range 50)
+    activeEnemies.forEach(e => {
+        if (e.x < 100 + BASE_RANGE) {
+            if (!window.heroLastAtk || time - window.heroLastAtk > 1000) {
+                e.hp -= BASE_ATK;
+                window.heroLastAtk = time;
+                flash(e.el);
+            }
+        }
+    });
+
+    // 魔王自らの攻撃 (Range 50)
+    activeUnits.forEach(u => {
+        if (u.x > STAGE_WIDTH - (100 + BASE_RANGE)) {
+            if (!window.kingLastAtk || time - window.kingLastAtk > 1000) {
+                u.hp -= BASE_ATK;
+                window.kingLastAtk = time;
+                flash(u.el);
+            }
+        }
     });
 }
 
@@ -570,8 +633,21 @@ function updateUI() {
 
 function showResultScreen() {
     const title = document.getElementById('result-title');
-    title.textContent = enemyHp <= 0 ? "VICTORY!" : "DEFEAT...";
-    title.style.color = enemyHp <= 0 ? "var(--hp-player)" : "var(--hp-enemy)";
+    const isWin = enemyHp <= 0;
+    
+    if (isWin) {
+        if (currentStage < 3) {
+            title.textContent = `STAGE ${currentStage} CLEAR!`;
+            currentStage++;
+        } else {
+            title.textContent = "GAME CLEAR! YOU ARE THE LEGEND!";
+            currentStage = 1; // リセット
+        }
+    } else {
+        title.textContent = "DEFEAT...";
+    }
+    
+    title.style.color = isWin ? "var(--hp-player)" : "var(--hp-enemy)";
 }
 
 function setupDebugCommands() {
@@ -579,6 +655,12 @@ function setupDebugCommands() {
 }
 
 function showSelectionScreen() {
+    const stageTitle = document.querySelector('.stage-title');
+    if (stageTitle) {
+        const stageNames = ["はじまりの草原", "燻る廃村", "最果ての魔王城"];
+        stageTitle.textContent = `STAGE ${currentStage}: ${stageNames[currentStage-1]}`;
+    }
+    
     unitOptionsContainer.innerHTML = ''; selectedDeck = []; updateSelectionUI();
     Object.values(UNIT_TYPES).forEach(unit => {
         const card = document.createElement('div'); card.classList.add('unit-card');
