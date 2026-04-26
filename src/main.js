@@ -8,6 +8,12 @@ let ENEMY_HP_SCALE = 1.0; // デバッグ用
 
 const STATE = { TITLE: 'title', SELECTION: 'selection', BATTLE: 'battle', RESULT: 'result' };
 
+const STAGE_CONFIG = {
+    1: { name: "はじまりの草原", hpScale: 1.0, waveGrowth: 40000, maxWave: 3 },
+    2: { name: "燻る廃村", hpScale: 1.5, waveGrowth: 30000, maxWave: 5 },
+    3: { name: "最果ての魔王城", hpScale: 2.0, waveGrowth: 20000, maxWave: 8 }
+};
+
 let currentStage = 1;
 let currentState = STATE.TITLE;
 let grid = [];
@@ -144,8 +150,8 @@ function resetGameData() {
 // --- Battle Screen ---
 function startBattle() {
     resetGameData();
-    // ステージに応じたHP倍率を設定
-    ENEMY_HP_SCALE = currentStage === 1 ? 1.0 : (currentStage === 2 ? 1.5 : 2.0);
+    const config = STAGE_CONFIG[currentStage];
+    ENEMY_HP_SCALE = config.hpScale;
     
     battleContainer.style.width = `${STAGE_WIDTH}px`;
     setupBaseCharacters();
@@ -330,8 +336,8 @@ function handlePointerUp(e) {
 
     if (targetSlotIdx !== -1) {
         executeMerge(dragSourceIdx, targetSlotIdx);
-    } else if (moveDist < 10) { 
-        // 短押し（10px以下の移動）なら拠点にクイック召喚
+    } else if (moveDist < 40) { 
+        // 短押し（40px以下の移動）なら拠点にクイック召喚
         if (unit && unit.level >= 1) {
             console.log("Quick deploying to base");
             deployUnit(unit, 150);
@@ -401,8 +407,9 @@ function deployUnit(unitData, x = 150) {
 }
 
 function spawnEnemy() {
-    // 経過時間に応じて同時出現数を増やす (20秒ごとに+2、最大10)
-    const waveSize = Math.min(10, 1 + Math.floor(battleElapsed / 10000) * 2);
+    const config = STAGE_CONFIG[currentStage];
+    // 経過時間に応じて同時出現数を増やす
+    const waveSize = Math.min(config.maxWave, 1 + Math.floor(battleElapsed / config.waveGrowth));
     
     for (let i = 0; i < waveSize; i++) {
         const isLarge = Math.random() > (0.8 + (currentStage * 0.05)); // ステージが進むと大型が出やすい
@@ -657,8 +664,8 @@ function setupDebugCommands() {
 function showSelectionScreen() {
     const stageTitle = document.querySelector('.stage-title');
     if (stageTitle) {
-        const stageNames = ["はじまりの草原", "燻る廃村", "最果ての魔王城"];
-        stageTitle.textContent = `STAGE ${currentStage}: ${stageNames[currentStage-1]}`;
+        const config = STAGE_CONFIG[currentStage];
+        stageTitle.textContent = `STAGE ${currentStage}: ${config.name}`;
     }
     
     unitOptionsContainer.innerHTML = ''; selectedDeck = []; updateSelectionUI();
