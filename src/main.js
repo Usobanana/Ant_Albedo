@@ -27,6 +27,8 @@ let lastUserTime = 0; // 最後にユーザーがカメラを触った時間
 // Drag State
 let draggedElement = null;
 let dragSourceIdx = null;
+let dragStartX = 0;
+let dragStartY = 0;
 
 const screens = {
     [STATE.TITLE]: document.getElementById('title-screen'),
@@ -275,6 +277,8 @@ function renderGrid() {
 function handlePointerDown(e, index, item) {
     draggedElement = item.cloneNode(true);
     dragSourceIdx = index;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
     item.style.opacity = '0.3';
     
     draggedElement.classList.add('dragging');
@@ -317,12 +321,21 @@ function handlePointerUp(e) {
 
     console.log(`Drop at (${x}, ${y}), Target Slot: ${targetSlotIdx}`);
 
+    const moveDist = Math.hypot(x - dragStartX, y - dragStartY);
+    const unit = grid[dragSourceIdx].unit;
+
     if (targetSlotIdx !== -1) {
         executeMerge(dragSourceIdx, targetSlotIdx);
+    } else if (moveDist < 10) { 
+        // 短押し（10px以下の移動）なら拠点にクイック召喚
+        if (unit && unit.level >= 1) {
+            console.log("Quick deploying to base");
+            deployUnit(unit, 150);
+            grid[dragSourceIdx].unit = null;
+        }
     } else {
         const fieldRect = battleField.getBoundingClientRect();
         if (x >= fieldRect.left && x <= fieldRect.right && y >= fieldRect.top && y <= fieldRect.bottom) {
-            const unit = grid[dragSourceIdx].unit;
             if (unit && unit.level >= 1) { 
                 const dropXInField = x - fieldRect.left + battleField.scrollLeft;
                 let frontX = 150;
@@ -469,7 +482,41 @@ function updateEntityHPBar(ent) {
 }
 
 function checkCollisions(time) {
-    activeUnits.forEach(u => { activeEnemies.forEach(e => { if (Math.abs(u.x - e.x) < 40 && Math.abs(u.y - e.y) < 20) { u.isFighting = true; e.isFighting = true; if (!u.lastAtk || time - u.lastAtk > 1000) { e.hp -= u.atk; u.lastAtk = time; flash(e.el); } if (!e.lastAtk || time - e.lastAtk > 1000) { u.hp -= e.atk; e.lastAtk = time; flash(u.el); } } }); });
+    // 味方の攻撃判定
+    activeUnits.forEach(u => {
+        const uData = UNIT_TYPES[u.type];
+        const range = uData.stats.range;
+        
+        activeEnemies.forEach(e => {
+            const dist = Math.abs(u.x - e.x);
+            if (dist < range && Math.abs(u.y - e.y) < 30 && u.x < e.x) {
+                u.isFighting = true;
+                if (!u.lastAtk || time - u.lastAtk > 1000) {
+                    e.hp -= u.atk;
+                    u.lastAtk = time;
+                    flash(e.el);
+                }
+            }
+        });
+    });
+
+    // 敵の攻撃判定
+    activeEnemies.forEach(e => {
+        const eData = ENEMY_TYPES[e.type];
+        const range = eData.stats.range;
+
+        activeUnits.forEach(u => {
+            const dist = Math.abs(u.x - e.x);
+            if (dist < range && Math.abs(u.y - e.y) < 30 && e.x > u.x) {
+                e.isFighting = true;
+                if (!e.lastAtk || time - e.lastAtk > 1000) {
+                    u.hp -= e.atk;
+                    e.lastAtk = time;
+                    flash(u.el);
+                }
+            }
+        });
+    });
 }
 
 function flash(el) { el.style.filter = "brightness(3)"; setTimeout(() => { if (el) el.style.filter = "none"; }, 100); }
