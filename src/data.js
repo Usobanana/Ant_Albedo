@@ -18,7 +18,7 @@ export const UNIT_TYPES = {
         name: 'ナイト',
         description: '高いHPで前線を維持する盾役。',
         color: '#fbbf24', // Yellow
-        stats: { hp: 200, atk: 5, spd: 1, range: 30 }
+        stats: { hp: 400, atk: 5, spd: 1, range: 30 }
     },
     ROGUE: {
         id: 'ROGUE',

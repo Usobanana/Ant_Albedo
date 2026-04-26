@@ -20,7 +20,8 @@ let activeEnemies = [];
 let isAutoFollow = true;
 let lastUserScrollTime = 0;
 let lastFrameTime = 0;
-let enemySpawnerId = null;
+let enemyTimer = 0;
+let battleElapsed = 0;
 
 // Drag State
 let draggedElement = null;
@@ -95,8 +96,9 @@ function resetGameData() {
     activeEnemies = [];
     battleContainer.innerHTML = '';
     isAutoFollow = true;
-    lastFrameTime = 0; // 時間のリセット
-    if (enemySpawnerId) { clearInterval(enemySpawnerId); enemySpawnerId = null; }
+    lastFrameTime = 0;
+    enemyTimer = 0;
+    battleElapsed = 0;
 }
 
 // --- Battle Screen ---
@@ -118,11 +120,6 @@ function startBattle() {
 
     renderGrid();
     battleField.scrollLeft = 0;
-
-    enemySpawnerId = setInterval(() => {
-        if (currentState !== STATE.BATTLE) return;
-        spawnEnemy();
-    }, ENEMY_SPAWN_INTERVAL);
 }
 
 function setupBaseCharacters() {
@@ -326,7 +323,12 @@ function deployUnit(unitData, x = 150) {
     el.style.background = data.color;
     el.innerHTML = `<span>Lv${unitData.level}</span>`;
     battleContainer.appendChild(el);
-    activeUnits.push({ ...unitData, x: x, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp * (1 + unitData.level * 0.5), atk: data.stats.atk * (unitData.level + 1), spd: data.stats.spd, el: el });
+    
+    // 成長ロジックを指数関数に変更 (1st Pass)
+    const hp = data.stats.hp * Math.pow(1.5, unitData.level);
+    const atk = data.stats.atk * Math.pow(2, unitData.level);
+    
+    activeUnits.push({ ...unitData, x: x, y: 50 + (Math.random() - 0.5) * 15, hp: hp, atk: atk, spd: data.stats.spd, el: el });
 }
 
 function spawnEnemy() {
@@ -351,6 +353,16 @@ function gameLoop(currentTime) {
     if (dt > 100) dt = 16; 
 
     if (currentState === STATE.BATTLE) {
+        battleElapsed += dt;
+        enemyTimer += dt;
+
+        // 敵の出現間隔を徐々に短縮 (4.5s -> 1.5s)
+        const currentEnemyInterval = Math.max(1500, 4500 - (battleElapsed / 1000) * 50);
+        if (enemyTimer >= currentEnemyInterval) {
+            spawnEnemy();
+            enemyTimer = 0;
+        }
+
         updateEntities(dt);
         checkCollisions(currentTime);
         cleanupEntities();
