@@ -2,7 +2,8 @@ import { UNIT_TYPES, ENEMY_TYPES } from './data.js';
 
 // --- Constants & State ---
 const GRID_SIZE = 5;
-const BASE_SPAWN_TIME = 20000; // 6000 -> 20000 (デザイナー調整：リソースを絞りジレンマを生む)
+const BASE_SPAWN_TIME = 60000; // 20000 -> 60000 (デザイナー調整：1分に1体の超希少リソース化)
+const SPAWN_INTERVAL = 5000; // デザイナー調整：アイテム出現の間に5秒の「溜め」を作る
 const ENEMY_SPAWN_INTERVAL = 4500;
 const STAGE_WIDTH = 2500;
 
@@ -22,6 +23,7 @@ let lastUserScrollTime = 0;
 let lastFrameTime = 0;
 let enemyTimer = 0;
 let battleElapsed = 0;
+let lastPopTime = 0;
 
 // Drag State
 let draggedElement = null;
@@ -108,16 +110,17 @@ function startBattle() {
     setupBaseCharacters();
     createGridUI();
     
-    // 初期配置：3体は即座に配置、残りは0-90%の範囲でクールタイムを設定
+    // 初期配置：3体分は即座にクールタイム100%（予約状態）にする。残りは0-90%の範囲。
     const initialIndices = Array.from({length: grid.length}, (_, i) => i).sort(() => Math.random() - 0.5).slice(0, 3);
     grid.forEach((slot, i) => {
         if (initialIndices.includes(i)) {
-            slot.unit = { type: selectedDeck[Math.floor(Math.random() * selectedDeck.length)], level: 0 };
-            slot.isNew = true;
-            slot.cooldown = 0;
+            slot.cooldown = BASE_SPAWN_TIME;
         } else {
             slot.cooldown = Math.random() * 0.9 * BASE_SPAWN_TIME;
         }
+        slot.unit = null;
+        slot.isNew = false;
+        slot.hasAnimated = false;
     });
 
     renderGrid();
@@ -158,19 +161,29 @@ function createGridUI() {
     }
 }
 
-function updateSpawns(dt) {
+function updateSpawns(dt, currentTime) {
     let changed = false;
+    
+    // クールタイムの進行（既に溜まっているものはそれ以上進めない）
     grid.forEach((slot, i) => {
         if (!slot.unit) {
-            slot.cooldown += dt;
-            if (slot.cooldown >= slot.target) {
-                slot.unit = { type: selectedDeck[Math.floor(Math.random() * selectedDeck.length)], level: 0 };
-                slot.cooldown = 0;
-                slot.isNew = true;
-                changed = true;
-            }
+            slot.cooldown = Math.min(slot.target, slot.cooldown + dt);
         }
     });
+
+    // 5秒のインターバルチェック
+    if (currentTime - lastPopTime >= SPAWN_INTERVAL) {
+        // 溜まっているマスの中から、最も古いもの（あるいは任意の一つ）を出現させる
+        const readySlot = grid.find(s => !s.unit && s.cooldown >= s.target);
+        if (readySlot) {
+            readySlot.unit = { type: selectedDeck[Math.floor(Math.random() * selectedDeck.length)], level: 0 };
+            readySlot.cooldown = 0;
+            readySlot.isNew = true;
+            lastPopTime = currentTime;
+            changed = true;
+        }
+    }
+
     if (changed) renderGrid();
     updateGauges();
 }
@@ -388,7 +401,7 @@ function gameLoop(currentTime) {
         updateEntities(dt);
         checkCollisions(currentTime);
         cleanupEntities();
-        updateSpawns(dt);
+        updateSpawns(dt, currentTime);
         updateCamera();
         updateMinimap();
         updateUI();
