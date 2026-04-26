@@ -36,6 +36,26 @@
 
     <!-- 3. バトル・マージ画面 (メインゲーム) -->
     <section id="battle-screen" class="screen hidden">
+      <button id="open-debug-btn" style="position:fixed; top:10px; right:10px; z-index:1001; background:rgba(0,0,0,0.5); color:white; border:none; padding:5px 10px; border-radius:4px; font-size:10px; cursor:pointer; font-weight:900;">DEBUG</button>
+      
+      <!-- Debug Menu -->
+      <div id="debug-menu" style="position:fixed; top:40px; right:10px; background:rgba(0,0,0,0.9); color:white; padding:15px; border-radius:12px; z-index:1000; font-size:11px; border:1px solid #444; display:none; width:160px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+          <div style="font-weight:900; border-bottom:1px solid #444; margin-bottom:10px; color:var(--accent-color)">DEBUG TUNING</div>
+          <div style="margin-bottom:10px">
+            <div>Map Width: <span id="debug-width-val">1250</span></div>
+            <input type="range" id="debug-width-slider" min="300" max="2500" step="50" value="1250" style="width:100%">
+          </div>
+          <div style="margin-bottom:10px">
+            <div>Spawn Time: <span id="debug-spawn-val">60</span>s</div>
+            <input type="range" id="debug-spawn-slider" min="5" max="120" step="1" value="60" style="width:100%">
+          </div>
+          <div style="margin-bottom:10px">
+            <div>Enemy Scale (HP): <span id="debug-diff-val">1.0</span></div>
+            <input type="range" id="debug-diff-slider" min="0.1" max="5.0" step="0.1" value="1.0" style="width:100%">
+          </div>
+          <button id="close-debug-btn" style="display:block; width:100%; margin-top:5px; background:var(--accent-color); border:none; color:white; cursor:pointer; padding:8px; border-radius:4px; font-weight:900">CLOSE</button>
+      </div>
+
       <div id="battle-field">
         <div id="battle-container"></div>
       </div>

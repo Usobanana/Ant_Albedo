@@ -2,8 +2,9 @@ import { UNIT_TYPES, ENEMY_TYPES } from './data.js';
 
 // --- Constants & State ---
 const GRID_SIZE = 5;
-const BASE_SPAWN_TIME = 60000;
-const STAGE_WIDTH = 1250; // 2500 -> 1250 (半分に短縮)
+let BASE_SPAWN_TIME = 60000;
+let STAGE_WIDTH = 625; // 1250 -> 625 (さらに半分)
+let ENEMY_HP_SCALE = 1.0; // デバッグ用
 
 const STATE = { TITLE: 'title', SELECTION: 'selection', BATTLE: 'battle', RESULT: 'result' };
 
@@ -21,6 +22,7 @@ let lastUserScrollTime = 0;
 let lastFrameTime = 0;
 let enemyTimer = 0;
 let battleElapsed = 0;
+let lastUserTime = 0; // 最後にユーザーがカメラを触った時間
 
 // Drag State
 let draggedElement = null;
@@ -59,12 +61,48 @@ function setupEventListeners() {
     window.addEventListener('pointerup', handlePointerUp);
 
     battleField.addEventListener('scroll', () => {
-        const now = Date.now();
-        if (now - lastUserScrollTime > 100) {
-            isAutoFollow = false;
-            lastUserScrollTime = now;
-        }
+        lastUserTime = Date.now();
     });
+    battleField.addEventListener('pointerdown', () => {
+        lastUserTime = Date.now();
+    });
+
+    // Debug Menu Setup
+    setupDebugUI();
+}
+
+function setupDebugUI() {
+    const menu = document.getElementById('debug-menu');
+    document.getElementById('open-debug-btn').onclick = () => menu.style.display = 'block';
+    document.getElementById('close-debug-btn').onclick = () => menu.style.display = 'none';
+    
+    const wSlider = document.getElementById('debug-width-slider');
+    const wVal = document.getElementById('debug-width-val');
+    wSlider.value = STAGE_WIDTH;
+    wVal.innerText = STAGE_WIDTH;
+    wSlider.oninput = (e) => {
+        STAGE_WIDTH = parseInt(e.target.value);
+        wVal.innerText = STAGE_WIDTH;
+        battleContainer.style.width = `${STAGE_WIDTH}px`;
+    };
+
+    const sSlider = document.getElementById('debug-spawn-slider');
+    const sVal = document.getElementById('debug-spawn-val');
+    sSlider.value = BASE_SPAWN_TIME / 1000;
+    sVal.innerText = sSlider.value;
+    sSlider.oninput = (e) => {
+        BASE_SPAWN_TIME = parseInt(e.target.value) * 1000;
+        sVal.innerText = e.target.value;
+        // 既存のグリッドのターゲットも一応更新
+        grid.forEach(s => s.target = BASE_SPAWN_TIME);
+    };
+
+    const dSlider = document.getElementById('debug-diff-slider');
+    const dVal = document.getElementById('debug-diff-val');
+    dSlider.oninput = (e) => {
+        ENEMY_HP_SCALE = parseFloat(e.target.value);
+        dVal.innerText = ENEMY_HP_SCALE.toFixed(1);
+    };
 }
 
 function changeState(newState) {
@@ -364,7 +402,7 @@ function spawnEnemy() {
     `;
     el.style.flexDirection = 'column';
     battleContainer.appendChild(el);
-    activeEnemies.push({ type: typeKey, x: STAGE_WIDTH - 150, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp, maxHp: data.stats.hp, atk: data.stats.atk, spd: data.stats.spd, el: el });
+    activeEnemies.push({ type: typeKey, x: STAGE_WIDTH - 150, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp * ENEMY_HP_SCALE, maxHp: data.stats.hp * ENEMY_HP_SCALE, atk: data.stats.atk, spd: data.stats.spd, el: el });
 }
 
 function gameLoop(currentTime) {
@@ -438,13 +476,21 @@ function flash(el) { el.style.filter = "brightness(3)"; setTimeout(() => { if (e
 function cleanupEntities() { activeUnits = activeUnits.filter(u => { if (u.hp <= 0) u.el.remove(); return u.hp > 0; }); activeEnemies = activeEnemies.filter(e => { if (e.hp <= 0) e.el.remove(); return e.hp > 0; }); }
 
 function updateCamera() {
-    if (!isAutoFollow) { if (Date.now() - lastUserScrollTime > 1500) isAutoFollow = true; return; }
-    let frontX = 0; activeUnits.forEach(u => { if (u.x > frontX) frontX = u.x; });
-    frontX = Math.max(frontX, 200);
-    const targetScroll = frontX - battleField.clientWidth / 2;
+    // ユーザー操作から3秒間は自動追従を「封印」する
+    if (Date.now() - lastUserTime < 3000) return;
+
+    let frontX = 150;
+    activeUnits.forEach(u => { if (u.x > frontX) frontX = u.x; });
+
+    // カメラ位置の計算
+    const maxScroll = STAGE_WIDTH - battleField.clientWidth;
+    const targetScroll = Math.max(0, Math.min(maxScroll, frontX - battleField.clientWidth / 2));
     const currentScroll = battleField.scrollLeft;
+    
     const diff = targetScroll - currentScroll;
-    if (Math.abs(diff) > 1) { lastUserScrollTime = Date.now(); battleField.scrollLeft += diff * 0.05; }
+    if (Math.abs(diff) > 1) {
+        battleField.scrollLeft += diff * 0.05;
+    }
 }
 
 function updateMinimap() {
