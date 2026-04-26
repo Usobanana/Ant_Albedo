@@ -324,24 +324,42 @@ function deployUnit(unitData, x = 150) {
     const el = document.createElement('div');
     el.classList.add('battle-unit');
     el.style.background = data.color;
-    el.innerHTML = `<div style="font-size:16px">${data.icon}</div><div style="font-size:8px;opacity:0.8">Lv${unitData.level}</div>`;
-    el.style.flexDirection = 'column';
-    battleContainer.appendChild(el);
     
     // 成長ロジックを指数関数に変更 (1st Pass)
     const hp = data.stats.hp * Math.pow(1.5, unitData.level);
     const atk = data.stats.atk * Math.pow(2, unitData.level);
     
-    activeUnits.push({ ...unitData, x: x, y: 50 + (Math.random() - 0.5) * 15, hp: hp, atk: atk, spd: data.stats.spd, el: el });
+    el.innerHTML = `
+        <div class="unit-hp-bar"><div class="unit-hp-fill" style="background:var(--hp-player);width:100%"></div></div>
+        <div style="font-size:16px">${data.icon}</div>
+        <div style="font-size:8px;opacity:0.8">Lv${unitData.level}</div>
+    `;
+    el.style.flexDirection = 'column';
+    battleContainer.appendChild(el);
+    
+    activeUnits.push({ ...unitData, x: x, y: 50 + (Math.random() - 0.5) * 15, hp: hp, maxHp: hp, atk: atk, spd: data.stats.spd, el: el });
 }
 
 function spawnEnemy() {
-    const data = ENEMY_TYPES.SKELETON;
+    const isLarge = Math.random() > 0.8;
+    const typeKey = isLarge ? 'LARGE_SKELETON' : 'SKELETON';
+    const data = ENEMY_TYPES[typeKey];
+    
     const el = document.createElement('div');
     el.classList.add('battle-unit', 'enemy');
-    el.innerHTML = `<span>💀</span>`;
+    if (isLarge) {
+        el.style.width = '54px'; el.style.height = '54px';
+        el.style.zIndex = '51';
+    }
+    
+    el.innerHTML = `
+        <div class="unit-hp-bar"><div class="unit-hp-fill" style="background:var(--hp-enemy);width:100%"></div></div>
+        <div style="font-size:${isLarge ? '24px' : '16px'}">${data.icon}</div>
+        <div style="font-size:${isLarge ? '10px' : '8px'};opacity:0.8">Lv0</div>
+    `;
+    el.style.flexDirection = 'column';
     battleContainer.appendChild(el);
-    activeEnemies.push({ type: 'SKELETON', x: STAGE_WIDTH - 150, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp, atk: data.stats.atk, spd: data.stats.spd, el: el });
+    activeEnemies.push({ type: typeKey, x: STAGE_WIDTH - 150, y: 50 + (Math.random() - 0.5) * 15, hp: data.stats.hp, maxHp: data.stats.hp, atk: data.stats.atk, spd: data.stats.spd, el: el });
 }
 
 function gameLoop(currentTime) {
@@ -379,8 +397,32 @@ function gameLoop(currentTime) {
 }
 
 function updateEntities(dt) {
-    activeUnits.forEach(u => { if (!u.isFighting) u.x += u.spd * (dt / 50); u.el.style.left = `${u.x}px`; u.el.style.top = `${u.y}%`; if (u.x >= STAGE_WIDTH - 100) { enemyHp = Math.max(0, enemyHp - u.atk); u.hp = 0; } u.isFighting = false; });
-    activeEnemies.forEach(e => { if (!e.isFighting) e.x -= e.spd * (dt / 50); e.el.style.left = `${e.x}px`; e.el.style.top = `${e.y}%`; if (e.x <= 100) { playerHp = Math.max(0, playerHp - e.atk); e.hp = 0; } e.isFighting = false; });
+    activeUnits.forEach(u => { 
+        if (!u.isFighting) u.x += u.spd * (dt / 50); 
+        u.el.style.left = `${u.x}px`; u.el.style.top = `${u.y}%`; 
+        updateEntityHPBar(u);
+        if (u.x >= STAGE_WIDTH - 100) { enemyHp = Math.max(0, enemyHp - u.atk); u.hp = 0; } 
+        u.isFighting = false; 
+    });
+    activeEnemies.forEach(e => { 
+        if (!e.isFighting) e.x -= e.spd * (dt / 50); 
+        e.el.style.left = `${e.x}px`; e.el.style.top = `${e.y}%`; 
+        updateEntityHPBar(e);
+        if (e.x <= 100) { playerHp = Math.max(0, playerHp - e.atk); e.hp = 0; } 
+        e.isFighting = false; 
+    });
+}
+
+function updateEntityHPBar(ent) {
+    const pct = (ent.hp / ent.maxHp) * 100;
+    const bar = ent.el.querySelector('.unit-hp-bar');
+    const fill = ent.el.querySelector('.unit-hp-fill');
+    if (pct < 100) {
+        bar.style.display = 'block';
+        fill.style.width = `${Math.max(0, pct)}%`;
+    } else {
+        bar.style.display = 'none';
+    }
 }
 
 function checkCollisions(time) {
