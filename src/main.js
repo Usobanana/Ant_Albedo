@@ -2,7 +2,7 @@ import { UNIT_TYPES, ENEMY_TYPES } from './data.js';
 
 // --- Constants & State ---
 const GRID_SIZE = 5;
-const BASE_SPAWN_TIME = 6000; // 4000 -> 6000 (デザイナー調整)
+const BASE_SPAWN_TIME = 20000; // 6000 -> 20000 (デザイナー調整：リソースを絞りジレンマを生む)
 const ENEMY_SPAWN_INTERVAL = 4500;
 const STAGE_WIDTH = 2500;
 
@@ -108,13 +108,15 @@ function startBattle() {
     setupBaseCharacters();
     createGridUI();
     
-    // 初期配置
-    grid.forEach(slot => {
-        if (Math.random() > 0.7) {
+    // 初期配置：3体は即座に配置、残りは0-90%の範囲でクールタイムを設定
+    const initialIndices = Array.from({length: grid.length}, (_, i) => i).sort(() => Math.random() - 0.5).slice(0, 3);
+    grid.forEach((slot, i) => {
+        if (initialIndices.includes(i)) {
             slot.unit = { type: selectedDeck[Math.floor(Math.random() * selectedDeck.length)], level: 0 };
             slot.isNew = true;
+            slot.cooldown = 0;
         } else {
-            slot.cooldown = Math.random() * BASE_SPAWN_TIME;
+            slot.cooldown = Math.random() * 0.9 * BASE_SPAWN_TIME;
         }
     });
 
@@ -218,7 +220,8 @@ function renderGrid() {
         item.dataset.type = unit.type;
         item.dataset.level = unit.level;
         item.style.background = UNIT_TYPES[unit.type].color;
-        item.innerHTML = `<span>Lv${unit.level}</span>`;
+        item.innerHTML = `<div style="font-size:24px;margin-bottom:2px">${UNIT_TYPES[unit.type].icon}</div><span style="font-size:12px;opacity:0.8">Lv${unit.level}</span>`;
+        item.style.flexDirection = 'column';
         item.style.touchAction = 'none';
         item.onpointerdown = (e) => handlePointerDown(e, i, item);
         slot.appendChild(item);
@@ -321,7 +324,8 @@ function deployUnit(unitData, x = 150) {
     const el = document.createElement('div');
     el.classList.add('battle-unit');
     el.style.background = data.color;
-    el.innerHTML = `<span>Lv${unitData.level}</span>`;
+    el.innerHTML = `<div style="font-size:16px">${data.icon}</div><div style="font-size:8px;opacity:0.8">Lv${unitData.level}</div>`;
+    el.style.flexDirection = 'column';
     battleContainer.appendChild(el);
     
     // 成長ロジックを指数関数に変更 (1st Pass)
